@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+        <meta content="utf-8" http-equiv="encoding">
+        <script src="https://d3js.org/d3.v4.min.js"></script>
+        <h1>My Weightloss Journal</h1>
+    </head>
+
+    <style> 
+
+        .hidden{
+            display: none;
+        }
+
+        .curr{
+            display: block;
+        }
+
+        .slide{
+            display: inline;
+        }
+
+        div.tooltip {	
+            position: absolute;			
+            text-align: center;			
+            width: 100px;					
+            height: 28px;					
+            padding: 2px;				
+            font: 12px sans-serif;		
+            background: lightsteelblue;	
+            border: 0px;		
+            border-radius: 8px;			
+            pointer-events: none;			
+        }
+
+        div.annotation {	
+            position: absolute;			
+            text-align: center;			
+            width: 100px;					
+            height: 90px;					
+            padding: 2px;				
+            font: 12px sans-serif;		
+            background: lightsteelblue;	
+            border: 0px;		
+            border-radius: 8px;			
+            pointer-events: none;			
+        }
+
+
+    </style>
+
+    <body onload="slide1()">
+        <p></p>
+        
+     
+   <div>
+            <div class="slide"> 
+                <input name="weight" 
+                       type="button"
+                       value="1" 
+                       onclick="" />
+            </div>
+            <div class="slide">
+                <input name="fatvsmuscle" 
+                       type="button"
+                       value="2" 
+                       onclick="" />
+            </div>
+            <div class="slide"> 
+                <input name="exercise" 
+                       type="button"
+                       value="3" 
+                       onclick="" />
+            </div>
+            <div class="slide"> 
+                <input name="exercise" 
+                       type="button"
+                       value="4" 
+                       onclick="" />
+            </div>
+            <div class="slide"> 
+                <input name="exercise" 
+                       type="button"
+                       value="5" 
+                       onclick="" />
+            </div>
+            <div class="slide"> 
+                <input name="next" 
+                       type="button"
+                       value=">" 
+                       onclick="nextSlide()" />
+            </div>
+        </div>
+     
+        <div class="curr" id="chartBox"></div>
+
+        <div id="tooltip"></div>
+        <div id="annotation"></div>
+
+        <script>
+
+            var formatDecimal = d3.format(".2f");
+            var margin = {top: 10, right: 30, bottom: 30, left: 60},
+            width = 960 - margin.left - margin.right,
+            height = 400 - margin.top - margin.bottom;
+            var currSlide = 0;
+            var div = d3.select("body").append("div")	
+                .attr("class", "tooltip")				
+                .style("opacity", 0);
+            
+            var divAnno = d3.select("body").append("div")	
+                .attr("class", "annotation")				
+                .style("opacity", 0)
+                .attr("id", "actualWeightAnnotation")	
+
+            var x = d3.scaleTime()
+                .range([ 0, width ]);
+
+            var y = d3.scaleLinear()
+                .range([ height, 0 ]);
+
+            var xaxis = d3.axisBottom(x).ticks(d3.timeWeek.every(1)).tickFormat(d3.timeFormat("%b %d"))
+            var yaxis = d3.axisLeft(y)
+
+            var svg = d3.select("#chartBox")
+                .append("svg")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .style("display", "inline")
+                .append("g")
+                    .attr("transform",
+                        "translate(" + margin.left + "," + margin.top + ")");
+
+            var svgExtra = d3.select("#chartBox")
+                .append("svg")
+                    .attr("width", 417)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .style("display", "inline")
+                .append("g")
+                    .attr("transform",
+                        "translate(" + margin.left + "," + margin.top + ")");
+
+
+            function slide1(){
+                currSlide = 1;
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_data.csv",
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        totalweight : +d.totalweight,
+                        }
+                    },
+                    function(data) {
+
+                        x.domain(d3.extent(data, function(d) { return new Date(d.date); }));
+                        y.domain([204, 225]);
+                        const transitionPath = d3.transition().ease(d3.easeSin).duration(5000);
+                        svg.append("g")
+                            .attr("transform", "translate(0," + height + ")")
+                            .attr("class","xaxis")
+                            .call(xaxis);
+
+                        svg.append("g")
+                            .attr("class","yaxis")
+                            .call(yaxis);
+
+                        var dataSlice = data.slice(0,25);
+
+                        d3.select("p")
+                            .text("Soon after quarantine started, I decided to become fit. This is my journey so far. The first few weeks I was counting calories with a 500 calorie deficit which should have equaled ~ 1 lb of weightloss per week, but I lost more than I expected")
+                            .style("font-size", "14px")
+
+                        svg.append("path")
+                            .datum(dataSlice)
+                            .attr("fill", "none")
+                            .attr("stroke", "steelblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("d", d3.line()
+                                    .x(function(d,i) { return x(d.date) })
+                                    .y(function(d,i) { return y(+d.totalweight)})
+                            )
+                            .attr("class", "actualWeight")
+                            .attr("class","before5")
+                            .attr('stroke-dashoffset', 10000)    
+                            .attr('stroke-dasharray', 10000)    
+                            .transition(transitionPath)
+                            .attr('stroke-dashoffset',0) 
+                        
+                        svg.append("text")
+                            .attr("x", (width /2))
+                            .attr("y", 0 - (margin.top / 2 - 20))
+                            .attr("text-anchor", "middle")
+                            .attr("class", "chartTitle")
+                            .style("font-size", "24px")
+                            .style("text-decoration", "underline")
+                            .text("Daily Weight")
+                            
+                            
+                        divAnno.html("The large initial spike in weight loss is due to water weight, normal for new dieters")	
+                            .style("left", (200) + "px")		
+                            .style("top", (150) + "px")
+                            .style("border", "1px black solid")
+                            .transition()
+                            .duration(1000)
+                            .style("opacity", 0.7)
+                                
+                        
+                        svg.append("line")
+                            .style("stroke", "black")
+                            .style("opacity", 0)
+                            .attr("x1", 167)
+                            .attr("y1", 98)
+                            .attr("x2", 167)
+                            .attr("y2", 98)
+                            .transition(1000)
+                            .attr("x1", 167)
+                            .attr("y1", 130)
+                            .attr("x2", 167)
+                            .attr("y2", 98)
+                            .style("opacity", 1)
+                            .attr("class", "actualWeight")
+                            .attr("class", "actualWeightAnnotation")   
+                    }
+                )
+            }
+
+            function slide2(){
+                currSlide = 2;
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_data.csv",
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        totalweight : +d.totalweight,
+                        }
+                    },
+                    function(data) {
+
+                        d3.select("p")
+                            .text("After the initial water weight loss, however, my weightloss began to slow down")
+                            .style("font-size", "14px")
+
+                        var dataSlice = data.slice(24);
+                        const transitionPath = d3.transition().ease(d3.easeSin).duration(5000);
+                        svg.append("path")
+                            .datum(dataSlice)
+                            .attr("fill", "none")
+                            .attr("stroke", "steelblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("d", d3.line()
+                                .x(function(d,i) { return x(d.date)})
+                                .y(function(d,i) { return y(d.totalweight)})
+                            )
+                            .attr("class", "actualWeight")
+                            .attr("class","before5")
+                            .attr('stroke-dashoffset', 10000)    
+                            .attr('stroke-dasharray', 10000)    
+                            .transition(transitionPath)
+                            .attr('stroke-dashoffset',0) 
+                    }
+                )
+            }
+
+            function slide3(){
+                currSlide = 3;
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_data.csv",
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        totalweight : +d.totalweight,
+                        expectedweight: +d.expectedweight
+                        }
+                    },
+                    function(data) {
+
+                        d3.select("p")
+                            .text("I wanted to know how much I should have lost, so I created a simple formula using my constant calorie deficit, as well as any extra calorie deficit I had that day, and calculated how many pounds that deficit would equal to based on the previous day's weight.")
+                            .style("font-size", "14px")
+
+                        var dataSlice = data.slice(1);
+
+                        svg.select(".chartTitle")
+                            .text("Expected Weight")
+
+                        svg.selectAll(".actualWeight")
+                            .transition()
+                            .style("opacity",0.4)
+
+                        svg.selectAll(".actualWeightAnnotation")
+                            .transition()
+                            .style("opacity",0.4)
+
+                        divAnno.transition()
+                            .style("opacity",0.4) 
+                        
+                        const transitionPath = d3.transition().ease(d3.easeSin).duration(5000);
+                        svg.append("path")
+                            .datum(dataSlice)
+                            .attr("fill", "none")
+                            .attr("stroke", "darkblue")
+                            .attr("stroke-width", 1.5)
+                            .attr('stroke-dashoffset', 10000)    
+                            .attr('stroke-dasharray', 10000) 
+                            .attr("d", d3.line()
+                                .x(function(d,i) { return x(d.date) })
+                                .y(function(d,i) { return y(+d.expectedweight)})
+                            )
+                            .attr("class", "expectedWeight")
+                            .attr("class","before5")   
+                            .transition(transitionPath)
+                            .attr('stroke-dashoffset',0)
+                    }
+                )
+            }
+
+            function slide4(){
+                currSlide = 4;
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_data.csv",
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        totalweight : +d.totalweight,
+                        expectedweight: +d.expectedweight
+                        }
+                    },
+                    function(data) {
+
+                        d3.select("p")
+                            .text("While there were places where I was equal to or even less than my expected weight, but overall, I was heavier than I should have been. Also, there was a lot of fluctuation in my weight day to day, so I decided to just worry about my weekly averages")
+                            .style("font-size", "14px")
+                            
+                        var dataSlice = data.slice(1);
+
+                        svg.select(".chartTitle")
+                            .text("Expected Weight vs Actual Weight")
+
+                        svg.selectAll(".actualWeight")
+                            .transition()
+                            .style("opacity",0.4)
+
+                        svg.selectAll(".expectedWeight")
+                            .transition()
+                            .style("opacity",0.4)
+
+                        svg.selectAll(".actualWeightAnnotation")
+                            .transition()
+                            .style("opacity",0)
+                        
+                        divAnno.transition()
+                            .style("opacity",0)
+
+                        var z = d3.scaleLinear()
+                            .domain([-4, 4])
+                            .range([5,15]);
+                        
+                        var color = d3.scaleLinear()
+                            .domain([-4, 0, +4])
+                            .range(["red", "white", "green"]);
+                        
+                        svg.selectAll("circle")
+                            .data(dataSlice)
+                            .enter().append("circle")
+                            .attr("r", 0)
+                            .attr("cx", function(d) { return x(d.date); })
+                            .attr("cy", function(d) { return y((d.expectedweight + d.totalweight)/2); })
+                            .on("mouseover", function(d,i) {		
+                                div.transition()		
+                                    .duration(200)		
+                                    .style("opacity", .9);		
+                                div	.html("Day " + (i+1) + "<br/>Difference = "  + formatDecimal(d.expectedweight - d.totalweight))	
+                                    .style("left", (d3.event.pageX) + "px")		
+                                    .style("top", (d3.event.pageY) + "px");	
+                                })					
+                            .on("mouseout", function(d) {		
+                                div.transition()		
+                                    .duration(500)		
+                                    .style("opacity", 0);	
+                            })
+                            .transition()
+                            .duration(1500)
+                            .attr("r",function(d){return z(d.expectedweight - d.totalweight);})
+                            .attr("fill",function(d){return color(d.expectedweight - d.totalweight);})
+                            .attr("stroke", "black")
+                            .attr("class","before5")
+                    }
+                )
+            }
+
+            function slide5(){
+                currSlide = 5;
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_weekly_data.csv",
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        totalweight : +d.totalweight,
+                        }
+                    },
+                    function(data) {
+
+                        x.domain(d3.extent(data, function(d) { return new Date(d.date); }));
+                        y.domain([204, 225]);
+
+                        d3.selectAll(".before5")
+                          //.style("opacity", 0)
+                            .remove()
+
+                        d3.select("p")
+                            .text("Now using weekly averages, the trends in my weightloss are more obvious")
+                            .style("font-size", "14px")
+                        
+                        const transitionPath = d3.transition().ease(d3.easeSin).duration(5000);
+                        svg.append("path")
+                            .datum(data)
+                            .attr("fill", "none")
+                            .attr("stroke", "steelblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("d", d3.line()
+                                    .x(function(d,i) { return x(d.date) })
+                                    .y(function(d,i) { return y(+d.totalweight)})
+                            )
+                            .attr("class", "actualAvgWeight")
+                            .attr('stroke-dashoffset', 10000)    
+                            .attr('stroke-dasharray', 10000)    
+                            .transition(transitionPath)
+                            .attr('stroke-dashoffset',0) 
+                        
+                            svg.select(".chartTitle")
+                                .text("Weekly Average Weight")
+                                
+  
+                    }
+                )
+            }
+
+            function slide6(){
+                currSlide = 6;
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_weekly_data.csv",
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        totalweight : +d.totalweight,
+                        expectedweight: +d.expectedweight
+                        }
+                    },
+                    function(data) {
+
+                        d3.select("p")
+                            .text("Using the Weekly Averages, we can see my weight is much closer to the expected weight I should be at")
+                            .style("font-size", "14px")
+
+                        var dataSlice = data.slice(1);
+
+                        svg.select(".chartTitle")
+                            .text("Weekly Average Expected Weight")
+
+                        const transitionPath = d3.transition().ease(d3.easeSin).duration(5000);
+                        svg.append("path")
+                            .datum(dataSlice)
+                            .attr("fill", "none")
+                            .attr("stroke", "darkblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("d", d3.line()
+                                .x(function(d,i) { return x(d.date) })
+                                .y(function(d,i) { return y(+d.expectedweight)})
+                            )
+                            .attr("class", "expectedAvgWeight")
+                            .attr('stroke-dashoffset', 10000)    
+                            .attr('stroke-dasharray', 10000)    
+                            .transition(transitionPath)
+                            .attr('stroke-dashoffset',0)
+                    }
+                )
+            }
+
+            function nextSlide(){
+                if(currSlide === 1){
+                    console.log("moving to slide 2");
+                    slide2();
+                } else if(currSlide === 2){
+                    console.log("moving to slide 3");
+                    slide3();
+                } else if(currSlide === 3){
+                    console.log("moving to slide 4");
+                    slide4();
+                } else if(currSlide === 4){
+                    console.log("moving to slide 5");
+                    slide5();
+                } else if(currSlide === 5){
+                    console.log("moving to slide 6");
+                    slide6();
+                }
+            }
+        </script>
+    </body>
+</html>

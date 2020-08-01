@@ -83,7 +83,18 @@
         </div>
 
         <div class = "hidden" id="fatvsmuscle">
-            <h1>TESTING 1</h1>
+            <div class="slide"> 
+                <input name="fatMuscleBar" 
+                       type="button"
+                       value="Daily" 
+                       onclick="fatmuscleGraph()" />
+            </div>
+            <div class="slide">
+                <input name="fatMuscleRatio" 
+                       type="button"
+                       value="Weekly" 
+                       onclick="fatMuscleRatioGraph()" />
+            </div>
         </div>
 
         <div class = "hidden" id="exercise"><h1>TESTING 2</h1></div>
@@ -171,6 +182,9 @@
                             .attr("class","yaxis")
                             .call(yaxis);
 
+                        const transitionPath = d3.transition().ease(d3.easeSin).duration(2500);
+                        //const pathLength = path.node().getTotalLength();
+
                         svgWeight.append("path")
                             .datum(data)
                             .attr("fill", "none")
@@ -178,6 +192,10 @@
                             .attr("stroke-width", 1.5)
                             .attr("class", "line")
                             .attr("d", weightline(data))
+                            .attr('stroke-dashoffset', 10000)    
+                            .attr('stroke-dasharray', 10000)    
+                            .transition(transitionPath)
+                            .attr('stroke-dashoffset',0)
                         
                         svgWeight.append("text")
                             .attr("x", (width /2))
@@ -195,20 +213,6 @@
                     function(d){ return { 
                         date : d3.timeParse("%m/%d/%Y")(d.date),  
                         totalweight : +d.totalweight,
-                        fatpercentage : +d.fatpercentage,
-                        fatweight : +d.fatweight,
-                        muscleweight : +d.muscleweight,
-                        muscletofat : +d.muscletofat,
-                        totalcalories : +d.totalcalories,
-                        calorieseaten : +d.calorieseaten,
-                        exercise : +d.exercise,
-                        caloriesremaining : +d.caloriesremaining,
-                        carbs : +d.carbs,
-                        fat : +d.fat,
-                        protein : +d.protein,
-                        mmr : +d.mmr,
-                        tdee : +d.tdee,
-                        expectedweight : +d.expectedweight
                         }
                     },
                     function(data) {
@@ -218,9 +222,20 @@
 
                         var svg_transition = d3.select("#weight").transition();
 
-                        svg_transition.select(".line")
-                            .duration(2000)
-                            .attr("d", weightline(data));
+                        const transitionPath = d3.transition().ease(d3.easeSin).duration(3000);
+                        //const pathLength = path.node().getTotalLength();
+
+                        svgWeight.append("path")
+                            .datum(data)
+                            .attr("fill", "none")
+                            .attr("stroke", "steelblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("class", "line")
+                            .attr("d", weightline(data))
+                            .attr('stroke-dashoffset', 10000)    
+                            .attr('stroke-dasharray', 10000)    
+                            .transition(transitionPath)
+                            .attr('stroke-dashoffset',0)
 
                         svg_transition.select(".xaxis")
                             .duration(750)
@@ -250,20 +265,6 @@
                     function(d){ return { 
                         date : d3.timeParse("%m/%d/%Y")(d.date),  
                         totalweight : +d.totalweight,
-                        fatpercentage : +d.fatpercentage,
-                        fatweight : +d.fatweight,
-                        muscleweight : +d.muscleweight,
-                        muscletofat : +d.muscletofat,
-                        totalcalories : +d.totalcalories,
-                        calorieseaten : +d.calorieseaten,
-                        exercise : +d.exercise,
-                        caloriesremaining : +d.caloriesremaining,
-                        carbs : +d.carbs,
-                        fat : +d.fat,
-                        protein : +d.protein,
-                        mmr : +d.mmr,
-                        tdee : +d.tdee,
-                        expectedweight : +d.expectedweight
                         }
                     },
                     function(data) {
@@ -273,7 +274,6 @@
                         y.domain([200, 225]);
 
                         var svg_transition = d3.select("#weight").transition();
-                        var tooltip = d3.select("#tooltip");
                         svgWeight.selectAll("circle")
                             .data(data)
                             .enter().append("circle")
@@ -323,6 +323,55 @@
                 )
             }
 
+            function fatmuscleGraph(){
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_weekly_data.csv",
+
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        totalweight : +d.totalweight,
+                        fatpercentage : +d.fatpercentage,
+                        fatweight : +d.fatweight,
+                        muscleweight : +d.muscleweight,
+                        muscletofat : +d.muscletofat,
+                        totalcalories : +d.totalcalories,
+                        calorieseaten : +d.calorieseaten,
+                        exercise : +d.exercise,
+                        caloriesremaining : +d.caloriesremaining,
+                        carbs : +d.carbs,
+                        fat : +d.fat,
+                        protein : +d.protein,
+                        mmr : +d.mmr,
+                        tdee : +d.tdee,
+                        expectedweight : +d.expectedweight
+                        }
+                    },
+                    function(data) {
+                        cleanSlides()
+                        x.domain(d3.extent(data, function(d) { return new Date(d.date); }));
+                        y.domain([2, 3]);
+
+                        svgFatMuscled.append("g")
+                            .attr("transform", "translate(0," + height + ")")
+                            .attr("class","xaxis")
+                            .call(xaxis);
+
+                        svgFatMuscled.append("g")
+                            .attr("class","yaxis")
+                            .call(yaxis);
+                        
+                        svgFatMuscled.append("text")
+                            .attr("x", (width /2))
+                            .attr("y", 0 - (margin.top / 2 - 20))
+                            .attr("text-anchor", "middle")
+                            .attr("class", "chartTitle")
+                            .style("font-size", "24px")
+                            .style("text-decoration", "underline")
+                            .text("Muscle to Fat Ratio")
+                        
+                        
+                    }
+                )
+            }
 
             function fatMuscleRatioGraph(){
                 d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_weekly_data.csv",
@@ -384,25 +433,99 @@
                             .attr("cx", function(d) { return x(d.date); })
                             .attr("cy", function(d) { return y(d.muscletofat); })
                             .attr("class", "dot")
-                                .on("mouseover", function(d, i){
-                                    d3.select(this)
-                                    .classed("hoverDot", true)
-                                    .classed("dot", false)
-                                    .attr("r", 10)
+                            .on("mouseover", function(d,i) {		
+                                div.transition()		
+                                    .duration(200)		
+                                    .style("opacity", .9);		
+                                div	.html("Week " + i + "<br/>Ratio = "  + d.muscletofat)	
+                                    .style("left", (d3.event.pageX) + "px")		
+                                    .style("top", (d3.event.pageY) + "px");	
+                                })					
+                            .on("mouseout", function(d) {		
+                                div.transition()		
+                                    .duration(500)		
+                                    .style("opacity", 0);	
+                            })
+                            .transition()
+                            .duration(1500)
+                            .attr("r",5)
+                    }
+                )
+            }
 
-                                    svgFatMuscled.select("rect")
-                                    .data(data).append("rect")
-                                    .style("opacity", 1)
-                                    .style("left", (d3.event.pageX)+"px")
-                                    .style("top", (d3.event.pageY)+"px")
-                                    .html("Ratio: "+d.muscletofat +"\nWeek "+i);
-                                })
-                                .on("mouseout", function (d, i){
-                                    d3.select(this)
-                                    .classed("hoverDot", false)
-                                    .classed("dot", true)
-                                    .attr("r", 5)
-                                })
+            function fatMuscleRatioGraph(){
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_weekly_data.csv",
+
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        totalweight : +d.totalweight,
+                        fatpercentage : +d.fatpercentage,
+                        fatweight : +d.fatweight,
+                        muscleweight : +d.muscleweight,
+                        muscletofat : +d.muscletofat,
+                        totalcalories : +d.totalcalories,
+                        calorieseaten : +d.calorieseaten,
+                        exercise : +d.exercise,
+                        caloriesremaining : +d.caloriesremaining,
+                        carbs : +d.carbs,
+                        fat : +d.fat,
+                        protein : +d.protein,
+                        mmr : +d.mmr,
+                        tdee : +d.tdee,
+                        expectedweight : +d.expectedweight
+                        }
+                    },
+                    function(data) {
+                        cleanSlides()
+                        x.domain(d3.extent(data, function(d) { return new Date(d.date); }));
+                        y.domain([2, 3]);
+
+                        svgFatMuscled.append("g")
+                            .attr("transform", "translate(0," + height + ")")
+                            .attr("class","xaxis")
+                            .call(xaxis);
+
+                        svgFatMuscled.append("g")
+                            .attr("class","yaxis")
+                            .call(yaxis);
+
+                        svgFatMuscled.append("path")
+                            .datum(data)
+                            .attr("fill", "none")
+                            .attr("stroke", "steelblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("class", "line")
+                            .attr("d", muscletofatline(data))
+                        
+                        svgFatMuscled.append("text")
+                            .attr("x", (width /2))
+                            .attr("y", 0 - (margin.top / 2 - 20))
+                            .attr("text-anchor", "middle")
+                            .attr("class", "chartTitle")
+                            .style("font-size", "24px")
+                            .style("text-decoration", "underline")
+                            .text("Muscle to Fat Ratio")
+                        
+                        svgFatMuscled.selectAll("circle")
+                            .data(data)
+                            .enter().append("circle")
+                            .attr("r", 0)
+                            .attr("cx", function(d) { return x(d.date); })
+                            .attr("cy", function(d) { return y(d.muscletofat); })
+                            .attr("class", "dot")
+                            .on("mouseover", function(d,i) {		
+                                div.transition()		
+                                    .duration(200)		
+                                    .style("opacity", .9);		
+                                div	.html("Week " + i + "<br/>Ratio = "  + d.muscletofat)	
+                                    .style("left", (d3.event.pageX) + "px")		
+                                    .style("top", (d3.event.pageY) + "px");	
+                                })					
+                            .on("mouseout", function(d) {		
+                                div.transition()		
+                                    .duration(500)		
+                                    .style("opacity", 0);	
+                            })
                             .transition()
                             .duration(1500)
                             .attr("r",5)
