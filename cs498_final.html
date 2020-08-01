@@ -13,6 +13,11 @@
             stroke: #fff;
         }
 
+        .hoverDot {
+            fill: #ff0000;
+            stroke: #fff;
+        }
+
         .hidden{
             display: none;
         }
@@ -25,10 +30,22 @@
             display: inline;
         }
 
+        div.tooltip {	
+            position: absolute;			
+            text-align: center;			
+            width: 100px;					
+            height: 28px;					
+            padding: 2px;				
+            font: 12px sans-serif;		
+            background: lightsteelblue;	
+            border: 0px;		
+            border-radius: 8px;			
+            pointer-events: none;			
+        }
     </style>
 
-    <body onload="init()">
-
+    <body onload="initWeight()">
+        <p>Soon after quarantine started, I decided to become fit. This is my journey so far</p>
         <div class="slides">
             <div class="slide"> 
                 <input name="weight" 
@@ -51,7 +68,6 @@
         </div>
 
         <div class="curr" id="weight">
-            <h2></h2>
             <div class="slide"> 
                 <input name="weightButton" 
                        type="button"
@@ -71,15 +87,26 @@
         </div>
 
         <div class = "hidden" id="exercise"><h1>TESTING 2</h1></div>
-        
+
+        <div id="tooltip"></div>
+
         <script>
             var margin = {top: 10, right: 30, bottom: 30, left: 60},
             width = 960 - margin.left - margin.right,
             height = 400 - margin.top - margin.bottom;
 
-            var valueline = d3.line()
-                                .x(function(d) { return x(d.date) })
-                                .y(function(d) { return y(+d.totalweight) })
+            var div = d3.select("body").append("div")	
+                .attr("class", "tooltip")				
+                .style("opacity", 0);
+
+            var weightline = d3.line()
+                .x(function(d) { return x(d.date) })
+                .y(function(d) { return y(+d.totalweight) })
+
+            var muscletofatline = d3.line()
+                .x(function(d) { return x(d.date) })
+                .y(function(d) { return y(+d.muscletofat) })
+            
 
             var x = d3.scaleTime()
                 .range([ 0, width ]);
@@ -91,7 +118,16 @@
             var yaxis = d3.axisLeft(y)
 
             // append the svg object to the body of the page
-            var svg = d3.select("#weight")
+            var svgWeight = d3.select("#weight")
+                .append("svg")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .style("display", "block")
+                .append("g")
+                    .attr("transform",
+                        "translate(" + margin.left + "," + margin.top + ")");
+            
+            var svgFatMuscled = d3.select("#fatvsmuscle")
                 .append("svg")
                     .attr("width", width + margin.left + margin.right)
                     .attr("height", height + margin.top + margin.bottom)
@@ -100,7 +136,7 @@
                     .attr("transform",
                         "translate(" + margin.left + "," + margin.top + ")");
 
-            function init(){
+            function initWeight(){
                 d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_data.csv",
                     function(d){ return { 
                         date : d3.timeParse("%m/%d/%Y")(d.date),  
@@ -122,27 +158,28 @@
                         }
                     },
                     function(data) {
+                        cleanSlides()
                         x.domain(d3.extent(data, function(d) { return new Date(d.date); }));
                         y.domain([200, 225]);
 
-                        svg.append("g")
+                        svgWeight.append("g")
                             .attr("transform", "translate(0," + height + ")")
                             .attr("class","xaxis")
                             .call(xaxis);
 
-                        svg.append("g")
+                        svgWeight.append("g")
                             .attr("class","yaxis")
                             .call(yaxis);
 
-                        svg.append("path")
+                        svgWeight.append("path")
                             .datum(data)
                             .attr("fill", "none")
                             .attr("stroke", "steelblue")
                             .attr("stroke-width", 1.5)
                             .attr("class", "line")
-                            .attr("d", valueline(data))
+                            .attr("d", weightline(data))
                         
-                        svg.append("text")
+                        svgWeight.append("text")
                             .attr("x", (width /2))
                             .attr("y", 0 - (margin.top / 2 - 20))
                             .attr("text-anchor", "middle")
@@ -175,7 +212,7 @@
                         }
                     },
                     function(data) {
-                        deleteDataPoints();
+                        cleanSlides();
                         x.domain(d3.extent(data, function(d) { return new Date(d.date); }));
                         y.domain([200, 225]);
 
@@ -183,7 +220,7 @@
 
                         svg_transition.select(".line")
                             .duration(2000)
-                            .attr("d", valueline(data));
+                            .attr("d", weightline(data));
 
                         svg_transition.select(".xaxis")
                             .duration(750)
@@ -195,7 +232,7 @@
                         
                         d3.select(".chartTitle").remove();
 
-                        svg.append("text")
+                        svgWeight.append("text")
                             .attr("x", (width /2))
                             .attr("y", 0 - (margin.top / 2 - 20))
                             .attr("text-anchor", "middle")
@@ -231,25 +268,39 @@
                     },
                     function(data) {
                         
+                        cleanSlides();
                         x.domain(d3.extent(data, function(d) { return new Date(d.date); }));
                         y.domain([200, 225]);
 
                         var svg_transition = d3.select("#weight").transition();
-                        
-                        svg.selectAll("circle")
+                        var tooltip = d3.select("#tooltip");
+                        svgWeight.selectAll("circle")
                             .data(data)
                             .enter().append("circle")
                             .attr("r", 0)
                             .attr("cx", function(d) { return x(d.date); })
                             .attr("cy", function(d) { return y(d.totalweight); })
                             .attr("class", "dot")
+                            .on("mouseover", function(d,i) {		
+                                div.transition()		
+                                    .duration(200)		
+                                    .style("opacity", .9);		
+                                div	.html("Week " + i + "<br/>Weight = "  + d.totalweight)	
+                                    .style("left", (d3.event.pageX) + "px")		
+                                    .style("top", (d3.event.pageY) + "px");	
+                                })					
+                            .on("mouseout", function(d) {		
+                                div.transition()		
+                                    .duration(500)		
+                                    .style("opacity", 0);	
+                            })
                             .transition()
                             .duration(1500)
                             .attr("r",5)
 
                         svg_transition.select(".line")
                             .duration(750)
-                            .attr("d", valueline(data));
+                            .attr("d", weightline(data));
 
                         svg_transition.select(".xaxis")
                             .duration(750)
@@ -259,9 +310,7 @@
                             .duration(750)
                             .call(yaxis);
 
-                        d3.select(".chartTitle").remove();
-
-                        svg.append("text")
+                        svgWeight.append("text")
                             .attr("x", (width /2))
                             .attr("y", 0 - (margin.top / 2 - 20))
                             .attr("text-anchor", "middle")
@@ -274,8 +323,96 @@
                 )
             }
 
-            function deleteDataPoints(){
-                svg.selectAll("circle").remove();
+
+            function fatMuscleRatioGraph(){
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_weekly_data.csv",
+
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        totalweight : +d.totalweight,
+                        fatpercentage : +d.fatpercentage,
+                        fatweight : +d.fatweight,
+                        muscleweight : +d.muscleweight,
+                        muscletofat : +d.muscletofat,
+                        totalcalories : +d.totalcalories,
+                        calorieseaten : +d.calorieseaten,
+                        exercise : +d.exercise,
+                        caloriesremaining : +d.caloriesremaining,
+                        carbs : +d.carbs,
+                        fat : +d.fat,
+                        protein : +d.protein,
+                        mmr : +d.mmr,
+                        tdee : +d.tdee,
+                        expectedweight : +d.expectedweight
+                        }
+                    },
+                    function(data) {
+                        cleanSlides()
+                        x.domain(d3.extent(data, function(d) { return new Date(d.date); }));
+                        y.domain([2, 3]);
+
+                        svgFatMuscled.append("g")
+                            .attr("transform", "translate(0," + height + ")")
+                            .attr("class","xaxis")
+                            .call(xaxis);
+
+                        svgFatMuscled.append("g")
+                            .attr("class","yaxis")
+                            .call(yaxis);
+
+                        svgFatMuscled.append("path")
+                            .datum(data)
+                            .attr("fill", "none")
+                            .attr("stroke", "steelblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("class", "line")
+                            .attr("d", muscletofatline(data))
+                        
+                        svgFatMuscled.append("text")
+                            .attr("x", (width /2))
+                            .attr("y", 0 - (margin.top / 2 - 20))
+                            .attr("text-anchor", "middle")
+                            .attr("class", "chartTitle")
+                            .style("font-size", "24px")
+                            .style("text-decoration", "underline")
+                            .text("Muscle to Fat Ratio")
+                        
+                        svgFatMuscled.selectAll("circle")
+                            .data(data)
+                            .enter().append("circle")
+                            .attr("r", 0)
+                            .attr("cx", function(d) { return x(d.date); })
+                            .attr("cy", function(d) { return y(d.muscletofat); })
+                            .attr("class", "dot")
+                                .on("mouseover", function(d, i){
+                                    d3.select(this)
+                                    .classed("hoverDot", true)
+                                    .classed("dot", false)
+                                    .attr("r", 10)
+
+                                    svgFatMuscled.select("rect")
+                                    .data(data).append("rect")
+                                    .style("opacity", 1)
+                                    .style("left", (d3.event.pageX)+"px")
+                                    .style("top", (d3.event.pageY)+"px")
+                                    .html("Ratio: "+d.muscletofat +"\nWeek "+i);
+                                })
+                                .on("mouseout", function (d, i){
+                                    d3.select(this)
+                                    .classed("hoverDot", false)
+                                    .classed("dot", true)
+                                    .attr("r", 5)
+                                })
+                            .transition()
+                            .duration(1500)
+                            .attr("r",5)
+                    }
+                )
+            }
+
+            function cleanSlides(){
+                d3.selectAll(".dot").remove();
+                d3.select(".chartTitle").remove();
             }
 
             function hideDivs(curr){
@@ -284,11 +421,13 @@
                     d3.select('#weight').classed("curr", true).classed("hidden", false)
                     d3.select('#fatvsmuscle').classed("hidden", true).classed("curr", false)
                     d3.select('#exercise').classed("hidden", true).classed("curr", false)
+                    initWeight();
                 }
                 else if(curr === "fatvsmuscle"){
                     d3.select('#fatvsmuscle').classed("curr", true).classed("hidden", false)
                     d3.select('#weight').classed("hidden", true).classed("curr", false)
                     d3.select('#exercise').classed("hidden", true).classed("curr", false)
+                    fatMuscleRatioGraph();
                 }
                 else if(curr === "exercise"){
                     d3.select('#exercise').classed("curr", true).classed("hidden", false)
