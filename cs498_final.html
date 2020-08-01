@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+        <meta content="utf-8" http-equiv="encoding">
+        <script src="https://d3js.org/d3.v4.min.js"></script>
+        <h1>My Weightloss Journal</h1>
+    </head>
+
+    <style> 
+        .dot {
+            fill: #ffab00;
+            stroke: #fff;
+        }
+
+        .hidden{
+            display: none;
+        }
+
+        .curr{
+            display: block;
+        }
+
+        .slide{
+            display: inline;
+        }
+
+    </style>
+
+    <body onload="init()">
+
+        <div class="slides">
+            <div class="slide"> 
+                <input name="weight" 
+                       type="button"
+                       value="1" 
+                       onclick="hideDivs('weight')" />
+            </div>
+            <div class="slide">
+                <input name="fatvsmuscle" 
+                       type="button"
+                       value="2" 
+                       onclick="hideDivs('fatvsmuscle')" />
+            </div>
+            <div class="slide"> 
+                <input name="exercise" 
+                       type="button"
+                       value="3" 
+                       onclick="hideDivs('exercise')" />
+            </div>
+        </div>
+
+        <div class="curr" id="weight">
+            <h2></h2>
+            <div class="slide"> 
+                <input name="weightButton" 
+                       type="button"
+                       value="Daily" 
+                       onclick="weightGraph()" />
+            </div>
+            <div class="slide">
+                <input name="weeklyWeightButton" 
+                       type="button"
+                       value="Weekly" 
+                       onclick="weeklyWeightGraph()" />
+            </div>
+        </div>
+
+        <div class = "hidden" id="fatvsmuscle">
+            <h1>TESTING 1</h1>
+        </div>
+
+        <div class = "hidden" id="exercise"><h1>TESTING 2</h1></div>
+        
+        <script>
+            var margin = {top: 10, right: 30, bottom: 30, left: 60},
+            width = 960 - margin.left - margin.right,
+            height = 400 - margin.top - margin.bottom;
+
+            var valueline = d3.line()
+                                .x(function(d) { return x(d.date) })
+                                .y(function(d) { return y(+d.totalweight) })
+
+            var x = d3.scaleTime()
+                .range([ 0, width ]);
+
+            var y = d3.scaleLinear()
+                .range([ height, 0 ]);
+
+            var xaxis = d3.axisBottom(x).ticks(d3.timeWeek.every(1)).tickFormat(d3.timeFormat("%b %d"))
+            var yaxis = d3.axisLeft(y)
+
+            // append the svg object to the body of the page
+            var svg = d3.select("#weight")
+                .append("svg")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .style("display", "block")
+                .append("g")
+                    .attr("transform",
+                        "translate(" + margin.left + "," + margin.top + ")");
+
+            function init(){
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_data.csv",
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        totalweight : +d.totalweight,
+                        fatpercentage : +d.fatpercentage,
+                        fatweight : +d.fatweight,
+                        muscleweight : +d.muscleweight,
+                        muscletofat : +d.muscletofat,
+                        totalcalories : +d.totalcalories,
+                        calorieseaten : +d.calorieseaten,
+                        exercise : +d.exercise,
+                        caloriesremaining : +d.caloriesremaining,
+                        carbs : +d.carbs,
+                        fat : +d.fat,
+                        protein : +d.protein,
+                        mmr : +d.mmr,
+                        tdee : +d.tdee,
+                        expectedweight : +d.expectedweight
+                        }
+                    },
+                    function(data) {
+                        x.domain(d3.extent(data, function(d) { return new Date(d.date); }));
+                        y.domain([200, 225]);
+
+                        svg.append("g")
+                            .attr("transform", "translate(0," + height + ")")
+                            .attr("class","xaxis")
+                            .call(xaxis);
+
+                        svg.append("g")
+                            .attr("class","yaxis")
+                            .call(yaxis);
+
+                        svg.append("path")
+                            .datum(data)
+                            .attr("fill", "none")
+                            .attr("stroke", "steelblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("class", "line")
+                            .attr("d", valueline(data))
+                        
+                        svg.append("text")
+                            .attr("x", (width /2))
+                            .attr("y", 0 - (margin.top / 2 - 20))
+                            .attr("text-anchor", "middle")
+                            .attr("class", "chartTitle")
+                            .style("font-size", "24px")
+                            .style("text-decoration", "underline")
+                            .text("Daily Weight")
+                    }
+                )
+            }
+            function weightGraph(){
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_data.csv",
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        totalweight : +d.totalweight,
+                        fatpercentage : +d.fatpercentage,
+                        fatweight : +d.fatweight,
+                        muscleweight : +d.muscleweight,
+                        muscletofat : +d.muscletofat,
+                        totalcalories : +d.totalcalories,
+                        calorieseaten : +d.calorieseaten,
+                        exercise : +d.exercise,
+                        caloriesremaining : +d.caloriesremaining,
+                        carbs : +d.carbs,
+                        fat : +d.fat,
+                        protein : +d.protein,
+                        mmr : +d.mmr,
+                        tdee : +d.tdee,
+                        expectedweight : +d.expectedweight
+                        }
+                    },
+                    function(data) {
+                        deleteDataPoints();
+                        x.domain(d3.extent(data, function(d) { return new Date(d.date); }));
+                        y.domain([200, 225]);
+
+                        var svg_transition = d3.select("#weight").transition();
+
+                        svg_transition.select(".line")
+                            .duration(2000)
+                            .attr("d", valueline(data));
+
+                        svg_transition.select(".xaxis")
+                            .duration(750)
+                            .call(xaxis);
+
+                        svg_transition.select(".yaxis")
+                            .duration(750)
+                            .call(yaxis);
+                        
+                        d3.select(".chartTitle").remove();
+
+                        svg.append("text")
+                            .attr("x", (width /2))
+                            .attr("y", 0 - (margin.top / 2 - 20))
+                            .attr("text-anchor", "middle")
+                            .attr("class", "chartTitle")
+                            .style("font-size", "24px")
+                            .style("text-decoration", "underline")
+                            .text("Daily Weight")
+
+                    }
+                )
+            }
+            function weeklyWeightGraph(){
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_weekly_data.csv",
+
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        totalweight : +d.totalweight,
+                        fatpercentage : +d.fatpercentage,
+                        fatweight : +d.fatweight,
+                        muscleweight : +d.muscleweight,
+                        muscletofat : +d.muscletofat,
+                        totalcalories : +d.totalcalories,
+                        calorieseaten : +d.calorieseaten,
+                        exercise : +d.exercise,
+                        caloriesremaining : +d.caloriesremaining,
+                        carbs : +d.carbs,
+                        fat : +d.fat,
+                        protein : +d.protein,
+                        mmr : +d.mmr,
+                        tdee : +d.tdee,
+                        expectedweight : +d.expectedweight
+                        }
+                    },
+                    function(data) {
+                        
+                        x.domain(d3.extent(data, function(d) { return new Date(d.date); }));
+                        y.domain([200, 225]);
+
+                        var svg_transition = d3.select("#weight").transition();
+                        
+                        svg.selectAll("circle")
+                            .data(data)
+                            .enter().append("circle")
+                            .attr("r", 0)
+                            .attr("cx", function(d) { return x(d.date); })
+                            .attr("cy", function(d) { return y(d.totalweight); })
+                            .attr("class", "dot")
+                            .transition()
+                            .duration(1500)
+                            .attr("r",5)
+
+                        svg_transition.select(".line")
+                            .duration(750)
+                            .attr("d", valueline(data));
+
+                        svg_transition.select(".xaxis")
+                            .duration(750)
+                            .call(xaxis);
+
+                        svg_transition.select(".yaxis")
+                            .duration(750)
+                            .call(yaxis);
+
+                        d3.select(".chartTitle").remove();
+
+                        svg.append("text")
+                            .attr("x", (width /2))
+                            .attr("y", 0 - (margin.top / 2 - 20))
+                            .attr("text-anchor", "middle")
+                            .attr("class", "chartTitle")
+                            .style("font-size", "24px")
+                            .style("text-decoration", "underline")
+                            .text("Weekly Weight Avg")
+                        
+                    }
+                )
+            }
+
+            function deleteDataPoints(){
+                svg.selectAll("circle").remove();
+            }
+
+            function hideDivs(curr){
+                console.log(curr);
+                if(curr === "weight"){
+                    d3.select('#weight').classed("curr", true).classed("hidden", false)
+                    d3.select('#fatvsmuscle').classed("hidden", true).classed("curr", false)
+                    d3.select('#exercise').classed("hidden", true).classed("curr", false)
+                }
+                else if(curr === "fatvsmuscle"){
+                    d3.select('#fatvsmuscle').classed("curr", true).classed("hidden", false)
+                    d3.select('#weight').classed("hidden", true).classed("curr", false)
+                    d3.select('#exercise').classed("hidden", true).classed("curr", false)
+                }
+                else if(curr === "exercise"){
+                    d3.select('#exercise').classed("curr", true).classed("hidden", false)
+                    d3.select('#fatvsmuscle').classed("hidden", true).classed("curr", false)
+                    d3.select('#weight').classed("hidden", true).classed("curr", false)
+                }
+            }
+
+        </script>
+    </body>
+</html>
