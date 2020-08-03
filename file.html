@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+        <meta content="utf-8" http-equiv="encoding">
+        <script src="https://d3js.org/d3.v4.min.js"></script>
+        <h1>My Weightloss Journal</h1>
+    </head>
+
+    <style> 
+
+        .hidden{
+            display: none;
+        }
+
+        .curr{
+            display: block;
+        }
+
+        .slide{
+            display: inline;
+        }
+
+        div.tooltip {	
+            position: absolute;			
+            text-align: center;			
+            width: 100px;					
+            height: 28px;					
+            padding: 2px;				
+            font: 12px sans-serif;		
+            background: lightsteelblue;	
+            border: 0px;		
+            border-radius: 8px;			
+            pointer-events: none;			
+        }
+
+        div.minigraph {	
+            position: absolute;			
+            text-align: left;			
+            width: 100px;					
+            height: 50px;					
+            padding: 2px;				
+            font: 12px sans-serif;		
+            background: rgb(150, 151, 151);	
+            border: 1px;				
+            pointer-events: none;			
+        }
+
+        div.annotation {	
+            position: absolute;			
+            text-align: center;			
+            width: 100px;					
+            height: 90px;					
+            padding: 2px;				
+            font: 12px sans-serif;		
+            background: lightsteelblue;	
+            border: 0px;		
+            border-radius: 8px;			
+            pointer-events: none;			
+        }
+
+        #fatmuscle{
+            position: absolute;			
+            text-align: center;			
+            width: 230px;					
+            height:45px;					
+            padding: 2px;				
+            font: 12px sans-serif;		
+            background: lightsteelblue;	
+            border: 0px;		
+            border-radius: 8px;			
+            pointer-events: none;	
+        }
+
+        #overviewControls{
+            display: none
+        }
+
+
+    </style>
+
+    <body onload="drawSlide1()">
+    <p></p>
+    <div>
+        <div class="slide"> 
+            <input name="1" 
+                    type="button"
+                    value="1" 
+                    onclick="slideChange('slide1')" />
+        </div>
+        <div class="slide">
+            <input name="2" 
+                    type="button"
+                    value="2" 
+                    onclick="slideChange('slide2')" />
+        </div>
+        <div class="slide"> 
+            <input name="3" 
+                    type="button"
+                    value="3" 
+                    onclick="slideChange('slide3')" />
+        </div>
+        <div class="slide"> 
+            <input name="4" 
+                    type="button"
+                    value="4" 
+                    onclick="slideChange('slide4')" />
+        </div>
+        <div class="slide"> 
+            <input name="5" 
+                    type="button"
+                    value="5" 
+                    onclick="slideChange('slide5')" />
+        </div>
+        <div class="slide"> 
+            <input name="6" 
+                    type="button"
+                    value="6" 
+                    onclick="slideChange('slide6')" />
+        </div>
+        <div class="slide"> 
+            <input name="next" 
+                    type="button"
+                    value=">" 
+                    onclick="nextSlide()" />
+        </div>
+    </div>
+
+    <div id="overviewControls">
+        <div class="slide"> 
+            <input name="weight" 
+                    type="button"
+                    value="Weight" 
+                    onclick="overview('weight')" />
+        </div>
+        <div class="slide">
+            <input name="expected" 
+                    type="button"
+                    value="Expected Weight" 
+                    onclick="overview('expected')" />
+        </div>
+        <div class="slide"> 
+            <input name="muscletofat" 
+                    type="button"
+                    value="Muscle to Fat Ratio" 
+                    onclick="overview('muscletofat')" />
+        </div>
+    </div>
+     
+        <div class="curr" id="chartBox"></div>
+
+        <div id="tooltip"></div>
+        <div class = "annotation" id="fatmuscle"></div>
+
+        <script>
+
+            var formatDecimal = d3.format(".2f");
+            var margin = {top: 10, right: 30, bottom: 30, left: 60},
+            width = 960 - margin.left - margin.right,
+            height = 400 - margin.top - margin.bottom;
+            var currSlide = 0;
+
+            var div = d3.select("body").append("div")	
+                .attr("class", "tooltip")				
+                .style("opacity", 0);
+            
+            var div2 = d3.select("body").append("div")	
+                .attr("class", "minigraph")				
+                .style("opacity", 0);
+            
+            var divAnno1 = d3.select("body").append("div")	
+                .attr("class", "annotation")				
+                .style("opacity", 0)
+                .attr("id", "actualWeightAnnotation")	
+
+            var x = d3.scaleTime()
+                .range([ 0, width ]);
+
+            var y = d3.scaleLinear()
+                .range([ height, 0 ]);
+
+            var xaxis = d3.axisBottom(x).ticks(d3.timeWeek.every(1)).tickFormat(d3.timeFormat("%b %d"))
+            var yaxis = d3.axisLeft(y)
+
+            var svg = d3.select("#chartBox")
+                .append("svg")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .style("display", "inline")
+                .append("g")
+                    .attr("transform",
+                        "translate(" + margin.left + "," + margin.top + ")");
+
+            var axis_state = "";
+            var weight = false;
+            var expected = false;
+            var ratio = false;
+
+            function drawAxes(){
+                svg.append("g")
+                            .attr("transform", "translate(0," + height + ")")
+                            .attr("class","xaxis")
+                            .call(xaxis);
+
+                svg.append("g")
+                    .attr("class","yaxis")
+                    .call(yaxis);
+            }
+
+            function drawTitle(title){
+                d3.select(".chartTitle").remove();
+                svg.append("text")
+                .attr("x", (width /2))
+                .attr("y", 0 - (margin.top / 2 - 20))
+                .attr("text-anchor", "middle")
+                .attr("class", "chartTitle")
+                .style("font-size", "24px")
+                .style("text-decoration", "underline")
+                .text(title)
+            }
+
+            function drawSlide1(){
+                currSlide = 1;
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_data.csv",
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        totalweight : +d.totalweight,
+                        }
+                    },
+                    function(data) {
+                        clearSlide();
+                        d3.select("#overviewControls")
+                            .style("display","none")
+                        d3.selectAll(".annotation")
+                            .style("opacity",0)
+                        x.domain(d3.extent(data, function(d) { return new Date(d.date); }));
+                        y.domain([204, 222]);
+                        drawAxes();
+
+                        axis_state = "weight"
+
+                        const transitionPath = d3.transition().ease(d3.easeSin).duration(5000);
+
+                        var dataSlice = data.slice(0,25);
+
+                        d3.select("p")
+                            .text("After the initial water weight loss, however, my weightloss began to slow down")
+                            .style("font-size", "14px")
+
+                        svg.append("path")
+                            .datum(dataSlice)
+                            .attr("fill", "none")
+                            .attr("stroke", "steelblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("d", d3.line()
+                                    .x(function(d,i) { return x(d.date) })
+                                    .y(function(d,i) { return y(+d.totalweight)})
+                            )
+                            .attr("class", "actualWeight")
+                            .attr("class","before5")
+                            .attr('stroke-dashoffset', 10000)    
+                            .attr('stroke-dasharray', 10000)    
+                            .transition(transitionPath)
+                            .attr('stroke-dashoffset',0)
+                            
+                        divAnno1.html("The large initial spike in weight loss is due to water weight, normal for new dieters")	
+                            .style("left", (200) + "px")		
+                            .style("top", (150) + "px")
+                            .style("border", "1px black solid")
+                            .style("opacity", 0)
+                            .transition()
+                            .duration(1000)
+                            .style("opacity", 0.7)
+                        
+                        svg.append("line")
+                            .style("stroke", "black")
+                            .style("opacity", 0)
+                            .attr("x1", 167)
+                            .attr("y1", 98)
+                            .attr("x2", 167)
+                            .attr("y2", 98)
+                            .attr("class","annotation")
+                            .transition(1000)
+                            .attr("x1", 167)
+                            .attr("y1", 130)
+                            .attr("x2", 167)
+                            .attr("y2", 98)
+                            .style("opacity", 0.7)
+                        
+                        svg.selectAll(".legend").remove();
+                        svg.append("text")
+                            .attr("x", (3*width/4))
+                            .attr("y", 85)
+                            .attr("text-anchor", "middle")
+                            .attr("class", "legend")
+                            .style("font-size", "14px")
+                            .style("text-decoration","underline")
+                            .text("Legend")
+                        svg.append("text")
+                            .attr("x", (3* width /4))
+                            .attr("y", 100)
+                            .attr("text-anchor", "middle")
+                            .attr("class", "legend")
+                            .style("font-size", "12px")
+                            .text("Daily Weight")
+                        svg.append("rect")
+                            .attr("x", (3*width /4) - 45)
+                            .attr("y", 91)
+                            .attr('width', 10)
+                            .attr("height", 10)
+                            .attr("fill", "steelblue")
+                            .attr("class", "legend")
+                         
+                    }
+                )
+            }
+
+            function drawSlide2(){
+                currSlide = 2;
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_data.csv",
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        totalweight : +d.totalweight,
+                        }
+                    },
+                    function(data) {
+                        clearSlide();
+                        d3.select("#overviewControls")
+                            .style("display","none")
+                        d3.selectAll(".annotation")
+                            .style("opacity",0)
+                        x.domain(d3.extent(data, function(d) { return new Date(d.date); }));
+                        y.domain([204, 222]);
+                        drawAxes();
+                        axis_state = "weight"
+
+                        const transitionPath = d3.transition().ease(d3.easeSin).duration(5000);
+
+                        d3.select("p")
+                            .text("Soon after quarantine started, I decided to become fit. This is my journey so far. The first few weeks I was counting calories with a 500 calorie deficit which should have equaled ~ 1 lb of weightloss per week, but I lost more than I expected")
+                            .style("font-size", "14px")
+
+                        
+                        svg.select(".chartTitle")
+                            .text("Daily Weight");
+
+                        var dataSlice1 = data.slice(0,25);
+                        var dataSlice2 = data.slice(24);
+
+                        svg.append("path")
+                            .datum(dataSlice1)
+                            .attr("fill", "none")
+                            .attr("stroke", "steelblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("d", d3.line()
+                                    .x(function(d,i) { return x(d.date) })
+                                    .y(function(d,i) { return y(+d.totalweight)})
+                            )
+                            .attr("class", "actualWeight")
+                            .attr("class","before5")
+
+                        svg.append("path")
+                            .datum(dataSlice2)
+                            .attr("fill", "none")
+                            .attr("stroke", "steelblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("d", d3.line()
+                                    .x(function(d,i) { return x(d.date) })
+                                    .y(function(d,i) { return y(+d.totalweight)})
+                            )
+                            .attr("class", "actualWeight")
+                            .attr("class","before5")
+                            .attr('stroke-dashoffset', 10000)    
+                            .attr('stroke-dasharray', 10000)    
+                            .transition(transitionPath)
+                            .attr('stroke-dashoffset',0)
+                        
+                        svg.append("text")
+                            .attr("x", (width /2))
+                            .attr("y", 0 - (margin.top / 2 - 20))
+                            .attr("text-anchor", "middle")
+                            .attr("class", "chartTitle")
+                            .style("font-size", "24px")
+                            .style("text-decoration", "underline")
+                            .text("Daily Weight")
+                            
+                        divAnno1.html("The large initial spike in weight loss is due to water weight, normal for new dieters")	
+                            .style("left", (200) + "px")		
+                            .style("top", (150) + "px")
+                            .style("border", "1px black solid")
+                            .style("opacity", 0)
+                            .transition()
+                            .duration(1000)
+                            .style("opacity", 0.7)
+                        
+                        svg.append("line")
+                            .style("stroke", "black")
+                            .style("opacity", 0)
+                            .attr("x1", 167)
+                            .attr("y1", 98)
+                            .attr("x2", 167)
+                            .attr("y2", 98)
+                            .attr("class","annotation")
+                            .transition(1000)
+                            .attr("x1", 167)
+                            .attr("y1", 130)
+                            .attr("x2", 167)
+                            .attr("y2", 98)
+                            .style("opacity", 0.7)
+                        
+                        svg.selectAll(".legend").remove();
+                        svg.append("text")
+                            .attr("x", (3*width/4))
+                            .attr("y", 85)
+                            .attr("text-anchor", "middle")
+                            .attr("class", "legend")
+                            .style("font-size", "14px")
+                            .style("text-decoration","underline")
+                            .text("Legend")
+                        svg.append("text")
+                            .attr("x", (3* width /4))
+                            .attr("y", 100)
+                            .attr("text-anchor", "middle")
+                            .attr("class", "legend")
+                            .style("font-size", "12px")
+                            .text("Daily Weight")
+                        svg.append("rect")
+                            .attr("x", (3*width /4) - 45)
+                            .attr("y", 91)
+                            .attr('width', 10)
+                            .attr("height", 10)
+                            .attr("fill", "steelblue")
+                            .attr("class", "legend")
+
+
+                    }
+                )
+            }
+
+            function drawSlide3(){
+                currSlide = 3;
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_data.csv",
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        totalweight : +d.totalweight,
+                        expectedweight: +d.expectedweight
+                        }
+                    },
+                    function(data) {
+                        clearSlide();
+                        d3.select("#overviewControls")
+                            .style("display","none")
+                        d3.selectAll(".annotation")
+                            .style("opacity",0)
+                        x.domain(d3.extent(data, function(d) { return new Date(d.date); }));
+                        y.domain([204, 222]);
+                        drawAxes();
+                        const transitionPath = d3.transition().ease(d3.easeSin).duration(5000);
+
+                        d3.select("p")
+                            .text("I wanted to know how much I should have lost, so I created a simple formula using my constant calorie deficit, as well as any extra calorie deficit I had that day, and calculated how many pounds that deficit would equal to based on the previous day's weight")
+                            .style("font-size", "14px")
+                        
+                            svg.select(".chartTitle")
+                            .text("Expected Weight");
+
+                        svg.append("path")
+                            .datum(data)
+                            .attr("fill", "none")
+                            .attr("stroke", "steelblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("d", d3.line()
+                                    .x(function(d,i) { return x(d.date) })
+                                    .y(function(d,i) { return y(+d.totalweight)})
+                            )
+                            .attr("class", "actualWeight")
+                            .attr("class","before5")
+                            .style("opacity", 0.4)
+
+                        var dataSlice = data.slice(1)
+
+                        svg.append("path")
+                            .datum(dataSlice)
+                            .attr("fill", "none")
+                            .attr("stroke", "darkblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("d", d3.line()
+                                    .x(function(d,i) { return x(d.date) })
+                                    .y(function(d,i) { return y(+d.expectedweight)})
+                            )
+                            .attr("class", "actualWeight")
+                            .attr("class","before5")
+                            .attr('stroke-dashoffset', 10000)    
+                            .attr('stroke-dasharray', 10000)    
+                            .transition(transitionPath)
+                            .attr('stroke-dashoffset',0)
+                            
+                        divAnno1.html("The large initial spike in weight loss is due to water weight, normal for new dieters")	
+                            .style("left", (200) + "px")		
+                            .style("top", (150) + "px")
+                            .style("border", "1px black solid")
+                            .style("opacity", 0)
+                            .transition()
+                            .duration(1000)
+                            .style("opacity", 0.4)
+                        
+                        svg.append("line")
+                            .style("stroke", "black")
+                            .style("opacity", 0)
+                            .attr("x1", 167)
+                            .attr("y1", 98)
+                            .attr("x2", 167)
+                            .attr("y2", 98)
+                            .attr("class","annotation")
+                            .transition(1000)
+                            .attr("x1", 167)
+                            .attr("y1", 130)
+                            .attr("x2", 167)
+                            .attr("y2", 98)
+                            .style("opacity", 0.4)
+
+                        svg.selectAll(".legend").remove();
+                        svg.append("text")
+                            .attr("x", (3*width/4))
+                            .attr("y", 85)
+                            .attr("text-anchor", "middle")
+                            .attr("class", "legend")
+                            .style("font-size", "14px")
+                            .style("text-decoration","underline")
+                            .text("Legend")
+                        svg.append("text")
+                            .attr("x", (3* width /4))
+                            .attr("y", 100)
+                            .attr("text-anchor", "middle")
+                            .attr("class", "legend")
+                            .style("font-size", "12px")
+                            .text("Daily Weight")
+                        svg.append("rect")
+                            .attr("x", (3*width /4) - 45)
+                            .attr("y", 91)
+                            .attr('width', 10)
+                            .attr("height", 10)
+                            .attr("fill", "steelblue")
+                            .attr("class", "legend")
+                        svg.append("text")
+                            .attr("x", (3* width /4) + 10)
+                            .attr("y", 115)
+                            .attr("text-anchor", "middle")
+                            .attr("class", "legend")
+                            .style("font-size", "12px")
+                            .text("Expected Weight")
+                        svg.append("rect")
+                            .attr("x", (3*width /4) - 45)
+                            .attr("y", 106)
+                            .attr('width', 10)
+                            .attr("height", 10)
+                            .attr("fill", "darkblue")
+                            .attr("class", "legend")
+                    }
+                )
+            }
+
+            function drawSlide4(){
+                currSlide = 4;
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_data.csv",
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        totalweight : +d.totalweight,
+                        expectedweight: +d.expectedweight
+                        }
+                    },
+                    function(data) {
+                        clearSlide();
+                        d3.select("#overviewControls")
+                            .style("display","none")
+                        d3.selectAll(".annotation")
+                            .style("opacity",0)
+                        x.domain(d3.extent(data, function(d) { return new Date(d.date); }));
+                        y.domain([204, 222]);
+                        drawAxes();
+
+                        const transitionPath = d3.transition().ease(d3.easeSin).duration(5000);
+
+                        d3.select("p")
+                            .text("While there were places where I was equal to or even less than my expected weight, but overall, I was heavier than I should have been. Also, there was a lot of fluctuation in my weight day to day, so I decided to just worry about my weekly averages")
+                            .style("font-size", "14px")
+                        
+                            svg.select(".chartTitle")
+                            .text("Expected Weight vs Daily Weight");
+
+                        svg.append("path")
+                            .datum(data)
+                            .attr("fill", "none")
+                            .attr("stroke", "steelblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("d", d3.line()
+                                    .x(function(d,i) { return x(d.date) })
+                                    .y(function(d,i) { return y(+d.totalweight)})
+                            )
+                            .attr("class", "actualWeight")
+                            .attr("class","before5")
+                            .style("opacity", 0.4)
+
+                        var dataSlice = data.slice(1)
+
+                        svg.append("path")
+                            .datum(dataSlice)
+                            .attr("fill", "none")
+                            .attr("stroke", "darkblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("d", d3.line()
+                                    .x(function(d,i) { return x(d.date) })
+                                    .y(function(d,i) { return y(+d.expectedweight)})
+                            )
+                            .attr("class", "actualWeight")
+                            .attr("class","before5")
+                        
+                        var z = d3.scaleLinear()
+                            .domain([-4, 4])
+                            .range([5,15]);
+                        
+                        var color = d3.scaleLinear()
+                            .domain([-4, 0, +4])
+                            .range(["red", "white", "green"]);
+
+                        svg.selectAll("circle")
+                            .data(dataSlice)
+                            .enter().append("circle")
+                            .attr("r", 0)
+                            .attr("cx", function(d) { return x(d.date); })
+                            .attr("cy", function(d) { return y((d.expectedweight + d.totalweight)/2); })
+                            .on("mouseover", function(d,i) {		
+                                div.transition()		
+                                    .duration(200)		
+                                    .style("opacity", .9);		
+                                div	.html("Day " + (i+1) + "<br/>Difference = "  + formatDecimal(d.expectedweight - d.totalweight))	
+                                    .style("left", (d3.event.pageX) + "px")		
+                                    .style("top", (d3.event.pageY) + "px");	
+                                })					
+                            .on("mouseout", function(d) {		
+                                div.transition()		
+                                    .duration(500)		
+                                    .style("opacity", 0);	
+                            })
+                            .transition()
+                            .duration(1500)
+                            .attr("r",function(d){return z(d.expectedweight - d.totalweight);})
+                            .attr("fill",function(d){return color(d.expectedweight - d.totalweight);})
+                            .attr("stroke", "black")
+                            .attr("class","before5")
+                        
+                        svg.selectAll(".legend").remove();
+                        svg.append("text")
+                            .attr("x", (3*width/4))
+                            .attr("y", 85)
+                            .attr("text-anchor", "middle")
+                            .attr("class", "legend")
+                            .style("font-size", "14px")
+                            .style("text-decoration","underline")
+                            .text("Legend")
+                        svg.append("text")
+                            .attr("x", (3* width /4) + 25)
+                            .attr("y", 100)
+                            .attr("text-anchor", "middle")
+                            .attr("class", "legend")
+                            .style("font-size", "12px")
+                            .text("Actual Weight Greater")
+                        svg.append("rect")
+                            .attr("x", (3*width /4) - 45)
+                            .attr("y", 91)
+                            .attr('width', 10)
+                            .attr("height", 10)
+                            .attr("fill", "red")
+                            .attr("class", "legend")
+                        svg.append("text")
+                            .attr("x", (3* width /4) + 30)
+                            .attr("y", 115)
+                            .attr("text-anchor", "middle")
+                            .attr("class", "legend")
+                            .style("font-size", "12px")
+                            .text("Expected Weight Greater")
+                        svg.append("rect")
+                            .attr("x", (3*width /4) - 45)
+                            .attr("y", 106)
+                            .attr('width', 10)
+                            .attr("height", 10)
+                            .attr("fill", "green")
+                            .attr("class", "legend")
+                    }
+                )
+            }
+
+            function drawSlide5(){
+                currSlide = 5;
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_weekly_data.csv",
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        totalweight : +d.totalweight,
+                        }
+                    },
+                    function(data) {
+                        clearSlide();
+                        d3.select("#overviewControls")
+                            .style("display","none")
+                        d3.selectAll(".annotation")
+                            .style("opacity",0)
+                        x.domain(d3.extent(data, function(d) { return new Date(d.date); }));
+                        y.domain([204, 222]);
+                        drawAxes();
+
+                        d3.select("p")
+                            .text("Now using weekly averages, the trends in my weightloss are more obvious")
+                            .style("font-size", "14px")
+                        
+                            svg.select(".chartTitle")
+                            .text("Weekly Average Weight");
+
+                        const transitionPath = d3.transition().ease(d3.easeSin).duration(5000);
+                        svg.append("path")
+                            .datum(data)
+                            .attr("fill", "none")
+                            .attr("stroke", "steelblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("d", d3.line()
+                                    .x(function(d,i) { return x(d.date) })
+                                    .y(function(d,i) { return y(+d.totalweight)})
+                            )
+                            .attr("class", "actualAvgWeight")
+                            .attr('stroke-dashoffset', 10000)    
+                            .attr('stroke-dasharray', 10000)    
+                            .transition(transitionPath)
+                            .attr('stroke-dashoffset',0)
+                            .attr("class","overviewWeight") 
+                        
+                        svg.selectAll("circle")
+                            .data(data)
+                            .enter().append("circle")
+                            .attr("r", 5)
+                            .attr("cx", function(d) { return x(d.date); })
+                            .attr("cy", function(d) { return y(d.totalweight); })
+                            .on("mouseover", function(d,i) {		
+                                div.transition()		
+                                    .duration(200)		
+                                    .style("opacity", .9);		
+                                div	.html("Week "+i+"<br/>Weight= " + formatDecimal(d.totalweight))	
+                                    .style("left", (d3.event.pageX) + "px")		
+                                    .style("top", (d3.event.pageY) + "px");	
+                                })					
+                            .on("mouseout", function(d) {		
+                                div.transition()		
+                                    .duration(500)		
+                                    .style("opacity", 0);	
+                            })
+                            .transition()
+                            .duration(1500)
+                            .attr("r", 7)
+                            .attr("stroke", "black")
+                            .attr("class","overviewWeight")
+                        
+                        svg.selectAll(".legend").remove();
+                        svg.append("text")
+                            .attr("x", (3*width/4))
+                            .attr("y", 85)
+                            .attr("text-anchor", "middle")
+                            .attr("class", "legend")
+                            .style("font-size", "14px")
+                            .style("text-decoration","underline")
+                            .text("Legend")
+                        svg.append("text")
+                            .attr("x", (3* width /4) + 25)
+                            .attr("y", 100)
+                            .attr("text-anchor", "middle")
+                            .attr("class", "legend")
+                            .style("font-size", "12px")
+                            .text("Weekly Average Weight")
+                        svg.append("rect")
+                            .attr("x", (3*width /4) - 45)
+                            .attr("y", 91)
+                            .attr('width', 10)
+                            .attr("height", 10)
+                            .attr("fill", "steelblue")
+                            .attr("class", "legend") 
+                    }
+                )
+            }
+
+            function drawSlide6(){
+                currSlide = 6;
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_weekly_data.csv",
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        totalweight : +d.totalweight,
+                        expectedweight : +d.expectedweight,
+                        fat: +d.fat,
+                        carbs: +d.carbs,
+                        protein: +d.protein
+                        }
+                    },
+                    function(data) {
+                        clearSlide();
+                        d3.selectAll(".annotation")
+                            .style("opacity",0)
+                        x.domain(d3.extent(data, function(d) { return new Date(d.date); }));
+                        y.domain([204, 222]);
+                        drawAxes();
+
+                        d3.select("p")
+                            .text("Comparing my weekly weight to the expected weight now shows that my weightloss is more closer to what it should be which is very encouraging. Feel free to interact with some of the data I have collected")
+                            .style("font-size", "14px")
+                        
+                            svg.select(".chartTitle")
+                            .text("Overview")
+
+                        d3.select("#overviewControls")
+                            .style("display","block")
+
+                        const transitionPath = d3.transition().ease(d3.easeSin).duration(5000);
+                        svg.append("path")
+                            .datum(data)
+                            .attr("fill", "none")
+                            .attr("stroke", "steelblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("d", d3.line()
+                                    .x(function(d,i) { return x(d.date) })
+                                    .y(function(d,i) { return y(+d.totalweight)})
+                            )
+                            .attr("class","overviewWeight") 
+                        
+                        svg.selectAll("circle")
+                            .data(data)
+                            .enter().append("circle")
+                            .attr("r", 5)
+                            .attr("cx", function(d) { return x(d.date); })
+                            .attr("cy", function(d) { return y(d.totalweight); })
+                            .attr("class","overviewWeight") 
+                            .on("mouseover", function(d,i) {		
+                                div.transition()		
+                                    .duration(200)		
+                                    .style("opacity", .9);		
+                                div.html("Week "+i+"<br/>Weight= " + formatDecimal(d.totalweight))	
+                                    .style("left", (d3.event.pageX) + "px")		
+                                    .style("top", (d3.event.pageY) + "px")
+                                div2.transition()		
+                                    .duration(200)		
+                                    .style("opacity", .9);
+                                div2.html("Fat %= " + (d.fat)+"<br/>Carbs %= " + (d.carbs)+"<br/>Protein %= " + (d.protein))	
+                                    .style("left", 900+"px")		
+                                    .style("top", 200+"px")
+                                })					
+                            .on("mouseout", function(d) {		
+                                div.transition()		
+                                    .duration(500)		
+                                    .style("opacity", 0);
+                                div2.transition()		
+                                    .duration(500)		
+                                    .style("opacity", 0);	
+                            })
+                        
+                        svg.append("path")
+                            .datum(data)
+                            .attr("fill", "none")
+                            .attr("stroke", "darkblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("d", d3.line()
+                                    .x(function(d,i) { return x(d.date) })
+                                    .y(function(d,i) { return y(d.expectedweight)})
+                            )
+                            .attr("class", "actualAvgWeight")
+                            .attr('stroke-dashoffset', 10000)    
+                            .attr('stroke-dasharray', 10000)    
+                            .transition(transitionPath)
+                            .attr('stroke-dashoffset',0)
+                            .attr("class","overviewExpected")
+                        
+                        svg.selectAll(".legend").remove();
+                        svg.append("text")
+                            .attr("x", (3*width/4))
+                            .attr("y", 115)
+                            .attr("text-anchor", "middle")
+                            .attr("class", "legend")
+                            .style("font-size", "14px")
+                            .style("text-decoration","underline")
+                            .text("Legend")
+                        svg.append("text")
+                            .attr("x", (3* width /4)+26)
+                            .attr("y", 130)
+                            .attr("text-anchor", "middle")
+                            .attr("class", "legend")
+                            .style("font-size", "12px")
+                            .text("Weekly Average Weight")
+                        svg.append("rect")
+                            .attr("x", (3*width /4) - 45)
+                            .attr("y", 121)
+                            .attr('width', 10)
+                            .attr("height", 10)
+                            .attr("fill", "steelblue")
+                            .attr("class", "legend")
+                        svg.append("text")
+                            .attr("x", (3* width /4) + 30)
+                            .attr("y", 145)
+                            .attr("text-anchor", "middle")
+                            .attr("class", "legend")
+                            .style("font-size", "12px")
+                            .text("Weekly Expected Weight")
+                        svg.append("rect")
+                            .attr("x", (3*width /4) - 45)
+                            .attr("y", 136)
+                            .attr('width', 10)
+                            .attr("height", 10)
+                            .attr("fill", "darkblue")
+                            .attr("class", "legend")
+                        svg.append("text")
+                            .attr("x", (3* width /4) + 11)
+                            .attr("y", 160)
+                            .attr("text-anchor", "middle")
+                            .attr("class", "legend")
+                            .style("font-size", "12px")
+                            .text("Muscle/Fat Ratio")
+                        svg.append("rect")
+                            .attr("x", (3*width /4) - 45)
+                            .attr("y", 151)
+                            .attr('width', 10)
+                            .attr("height", 10)
+                            .attr("fill", "darkorange")
+                            .attr("class", "legend")
+
+                    }
+                )
+            }
+
+            function drawFatVsMuscle(){
+                
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_weekly_data.csv",
+                    function(d){ return { 
+                        date: d3.timeParse("%m/%d/%Y")(d.date), 
+                        muscletofat : +d.muscletofat,
+                        fat: +d.fat,
+                        carbs: +d.carbs,
+                        protein: +d.protein
+                        }
+                    },
+                    function(data) {
+                        d3.selectAll(".overviewWeight").remove();
+                        weight = false;
+                        d3.selectAll(".overviewExpected").remove();
+                        expected = false;
+                        d3.selectAll(".annotation")
+                            .style("opacity",0)
+                        x.domain(d3.extent(data, function(d) { return new Date(d.date); }));
+                        y.domain([2, 3]);
+                        drawAxes();
+                        d3.select(".yaxis").transition().duration(750).call(yaxis)
+
+                        const transitionPath = d3.transition().ease(d3.easeSin).duration(5000);
+                        svg.append("path")
+                            .datum(data)
+                            .attr("fill", "none")
+                            .attr("stroke", "darkorange")
+                            .attr("stroke-width", 1.5)
+                            .attr("d", d3.line()
+                                    .x(function(d,i) { return x(d.date) })
+                                    .y(function(d,i) { return y(+d.muscletofat)})
+                            )
+                            .attr("class", "actualAvgWeight")
+                            .attr('stroke-dashoffset', 10000)    
+                            .attr('stroke-dasharray', 10000)    
+                            .transition(transitionPath)
+                            .attr('stroke-dashoffset',0)
+                            .attr("class","overviewRatio") 
+
+                        svg.selectAll("circle")
+                            .data(data)
+                            .enter().append("circle")
+                            .attr("r", 0)
+                            .attr("cx", function(d) { return x(d.date); })
+                            .attr("cy", function(d) { return y(d.muscletofat); })
+                            .attr("class", "dot")
+                            .on("mouseover", function(d,i) {		
+                                div.transition()		
+                                    .duration(200)		
+                                    .style("opacity", .9);		
+                                div	.html("Week " + i + "<br/>Ratio = "  + d.muscletofat)	
+                                    .style("left", (d3.event.pageX) + "px")		
+                                    .style("top", (d3.event.pageY) + "px");	
+                                div2.transition()		
+                                    .duration(200)		
+                                    .style("opacity", .9);
+                                div2.html("Fat %= " + (d.fat)+"<br/>Carbs %= " + (d.carbs)+"<br/>Protein %= " + (d.protein))	
+                                    .style("left", 900+"px")		
+                                    .style("top", 200+"px")
+                                })					
+                            .on("mouseout", function(d) {		
+                                div.transition()		
+                                    .duration(500)		
+                                    .style("opacity", 0);
+                                div2.transition()		
+                                    .duration(500)		
+                                    .style("opacity", 0);	
+                            })
+                            .transition()
+                            .duration(1500)
+                            .attr("r",7)
+                            .attr("class","overviewRatio")
+
+                            var divAnno2 = d3.select("#fatmuscle");
+                            
+                        divAnno2.html("The positive slope means I am losing more fat than muscle, which is what I want")	
+                            .style("left", (400) + "px")		
+                            .style("top", (300) + "px")
+                            .style("border", "1px black solid")
+                            .style("opacity", 0)
+                            .transition()
+                            .duration(1000)
+                            .style("opacity", 0.7)
+                         
+                    }
+                )
+            }
+            
+            function drawWeightGraph(){
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_weekly_data.csv",
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        totalweight : +d.totalweight,
+                        expectedweight : +d.expectedweight,
+                        fat: +d.fat,
+                        carbs: +d.carbs,
+                        protein: +d.protein
+                        }
+                    },
+                    function(data) {
+                        d3.selectAll(".overviewRatio").remove();
+                        ratio = false;
+                        d3.selectAll(".annotation")
+                            .style("opacity",0)
+                        y.domain([204, 222]);
+                        drawAxes();
+                        d3.select(".yaxis").transition().duration(750).call(yaxis)
+
+                        const transitionPath = d3.transition().ease(d3.easeSin).duration(5000);
+                        svg.append("path")
+                            .datum(data)
+                            .attr("fill", "none")
+                            .attr("stroke", "steelblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("d", d3.line()
+                                    .x(function(d,i) { return x(d.date) })
+                                    .y(function(d,i) { return y(+d.totalweight)})
+                            )
+                            .attr("class", "actualAvgWeight")
+                            .attr("class","overviewWeight")
+                            .attr('stroke-dashoffset', 10000)    
+                            .attr('stroke-dasharray', 10000)    
+                            .transition(transitionPath)
+                            .attr('stroke-dashoffset',0) 
+                        
+                        svg.selectAll("circle")
+                            .data(data)
+                            .enter().append("circle")
+                            .attr("r", 0)
+                            .attr("cx", function(d) { return x(d.date); })
+                            .attr("cy", function(d) { return y(d.totalweight); })
+                            .attr("class","overviewWeight") 
+                            .on("mouseover", function(d,i) {		
+                                div.transition()		
+                                    .duration(200)		
+                                    .style("opacity", .9);		
+                                div	.html("Week "+i+"<br/>Weight= " + formatDecimal(d.totalweight))	
+                                    .style("left", (d3.event.pageX) + "px")		
+                                    .style("top", (d3.event.pageY) + "px");	
+                                div2.transition()		
+                                    .duration(200)		
+                                    .style("opacity", .9);
+                                div2.html("Fat %= " + (d.fat)+"<br/>Carbs %= " + (d.carbs)+"<br/>Protein %= " + (d.protein))	
+                                    .style("left", 900+"px")		
+                                    .style("top", 200+"px")
+                                })					
+                            .on("mouseout", function(d) {		
+                                div.transition()		
+                                    .duration(500)		
+                                    .style("opacity", 0);
+                                div2.transition()		
+                                    .duration(500)		
+                                    .style("opacity", 0);	
+                            })
+                            .transition()
+                            .duration(1500)
+                            .attr("r", 7)
+                            .attr("stroke", "black")
+                            .attr("class","overviewExpected")  
+                    }
+                )
+            }
+
+            function drawExpectedWeight(){
+                d3.csv("https://raw.githubusercontent.com/z29/testing/master/weightloss_weekly_data.csv",
+                    function(d){ return { 
+                        date : d3.timeParse("%m/%d/%Y")(d.date),  
+                        expectedweight : +d.expectedweight,
+                        fat: +d.fat,
+                        carbs: +d.carbs,
+                        protein: +d.protein
+                        }
+                    },
+                    function(data) {
+                        d3.selectAll(".overviewRatio").remove();
+                        ratio = false;
+                        d3.selectAll(".annotation")
+                            .style("opacity",0)
+                        y.domain([204, 222]);
+                        drawAxes();
+                        d3.select(".yaxis").transition().duration(750).call(yaxis)
+
+                        const transitionPath = d3.transition().ease(d3.easeSin).duration(5000);
+                        svg.append("path")
+                            .datum(data)
+                            .attr("fill", "none")
+                            .attr("stroke", "darkblue")
+                            .attr("stroke-width", 1.5)
+                            .attr("d", d3.line()
+                                    .x(function(d,i) { return x(d.date) })
+                                    .y(function(d,i) { return y(+d.expectedweight)})
+                            )
+                            .attr("class", "actualAvgWeight")
+                            .attr('stroke-dashoffset', 10000)    
+                            .attr('stroke-dasharray', 10000)    
+                            .transition(transitionPath)
+                            .attr('stroke-dashoffset',0)
+                            .attr("class","overviewExpected") 
+                        
+                        svg.selectAll("circle")
+                            .data(data)
+                            .enter().append("circle")
+                            .attr("r", 5)
+                            .attr("cx", function(d) { return x(d.date); })
+                            .attr("cy", function(d) { return y(d.expectedweight); })
+                            .on("mouseover", function(d,i) {		
+                                div.transition()		
+                                    .duration(200)		
+                                    .style("opacity", .9);		
+                                div	.html("Week "+i+"<br/>Weight= " + formatDecimal(d.expectedweight))	
+                                    .style("left", (d3.event.pageX) + "px")		
+                                    .style("top", (d3.event.pageY) + "px");	
+                                div2.transition()		
+                                    .duration(200)		
+                                    .style("opacity", .9);
+                                div2.html("Fat %= " + (d.fat)+"<br/>Carbs %= " + (d.carbs)+"<br/>Protein %= " + (d.protein))	
+                                    .style("left", 900+"px")		
+                                    .style("top", 200+"px")
+                                })					
+                            .on("mouseout", function(d) {		
+                                div.transition()		
+                                    .duration(500)		
+                                    .style("opacity", 0);
+                                div2.transition()		
+                                    .duration(500)		
+                                    .style("opacity", 0);	
+                            })
+                            .transition()
+                            .duration(1500)
+                            .attr("r", 7)
+                            .attr("stroke", "black")
+                            .attr("class","overviewExpected") 
+                    }
+                )
+            }
+            function overview(expression){
+                switch(expression){
+                    case 'weight':
+                        if(weight){
+                            weight = false;
+                            d3.selectAll(".overviewWeight").remove();
+                        } else if (!weight){
+                            weight = true;
+                            clearAxis()
+                            drawWeightGraph();
+                        }
+                        break;
+                    case 'expected':
+                        if(expected){
+                            expected = false;
+                            d3.selectAll(".overviewExpected").remove();
+                        } else if(!expected){
+                            expected = true;
+                            clearAxis()
+                            drawExpectedWeight();
+                        }
+                        break;
+                    case 'muscletofat':
+                        if(ratio){
+                                d3.selectAll(".overviewRatio").remove();
+                                ratio = false;
+                            } else if(!ratio){
+                                ratio = true;
+                                clearAxis()
+                                drawFatVsMuscle();
+                            }
+                        break;
+                    default: break;
+                } 
+            }
+
+            function nextSlide(){
+                if(currSlide === 1){
+                    console.log("moving to slide 2");
+                    drawSlide2();
+                } else if(currSlide === 2){
+                    console.log("moving to slide 3");
+                    drawSlide3();
+                } else if(currSlide === 3){
+                    console.log("moving to slide 4");
+                    drawSlide4();
+                } else if(currSlide === 4){
+                    console.log("moving to slide 5");
+                    drawSlide5();
+                } else if(currSlide === 5){
+                    console.log("moving to slide 6");
+                    drawSlide6();
+                }
+            }
+
+            function slideChange(slide){
+                switch(slide){
+                    case 'slide1':
+                        drawSlide1();
+                        break;
+                    case 'slide2':
+                        drawSlide2();
+                        break;
+                    case 'slide3':
+                        drawSlide3();
+                        break;
+                    case 'slide4':
+                        drawSlide4();
+                        break;
+                    case 'slide5':
+                        drawSlide5();
+                        break;
+                    case 'slide6':
+                        drawSlide6();
+                        break;
+                    default: break;
+                }
+            }
+
+            function sideGraph(carbs,fat,protein){
+                var dataSlice = [
+                    {
+                        "name":"Carbs %",
+                        "value":carbs
+                    },
+                    {
+                        "name":"Fat %",
+                        "value":fat
+                    },
+                    {
+                        "name":"Protein %",
+                        "value":protein
+                    },
+                ]
+
+                var x = d3.scaleLinear()
+                    .range([0,width])
+                    .domain(0,100)
+                var y = d3.scaleBand()
+                    .rangeRound([height,0],0.1)
+                    .domain(dataSlice.map(function(d){
+                        return d.name;
+                    }))
+
+                var yAxis = d3.axisLeft(y)
+                    .tickSize(0)
+                
+                var bars = svg.selectAll(".bar")
+                    .data(dataSlice)
+                    .enter()
+                    .append("g")
+                
+                bars.append("rect")
+                    .attr("class", "bar")
+                    .attr("y", function(d){
+                        return y(d.name);
+                    })
+                    .attr("height", y.bandwidth())
+                    .attr("x", 0)
+                    .attr("width", function(d){
+                        return x(d.value)
+                    })
+                
+                bars.append("text")
+                    .attr("class","label")
+                    .attr("y", function(d){
+                        return y(d.name)+y.bandwidth()/2 +4;
+                    })
+                    .attr("x", function(d){
+                        return x(d.value) +3;
+                    });
+
+
+                        
+
+            }
+
+            function clearSlide(){
+                d3.select(".xaxis").remove();
+                d3.select(".yaxis").remove();
+                d3.selectAll("path").remove();
+                d3.selectAll("circle").remove();
+            }
+
+            function clearAxis(){
+                d3.select(".xaxis").remove();
+                d3.select(".yaxis").remove();
+            }
+        </script>
+    </body>
+</html>
